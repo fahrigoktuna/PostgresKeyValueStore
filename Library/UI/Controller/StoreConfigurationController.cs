@@ -18,7 +18,7 @@ namespace PostgresKeyValueStore.Library
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll(int page, int pageSize, string search)
+        public async Task<IActionResult> GetAll(int page, int pageSize, string? search)
         {
             
             var query = _dbContext.Configurations.AsQueryable().AsNoTracking();

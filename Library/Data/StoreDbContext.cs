@@ -7,8 +7,6 @@ namespace PostgresKeyValueStore.Library
         public const string DefaultSchema = "store";
 
         public DbSet<Configuration> Configurations => Set<Configuration>();
-
-
         public StoreDbContext(DbContextOptions<StoreDbContext> options)
             : base(options) { }
         

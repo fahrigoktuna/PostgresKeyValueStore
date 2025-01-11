@@ -26,7 +26,7 @@ namespace PostgresKeyValueStore.Library
             _configuration.GetSection(typeof(StoreOptions).Name).Bind(storeOptions);
 
 
-            DatabaseConfigurationProvider provider = null;
+            DatabaseConfigurationProvider? provider = null;
 
             if (_configuration is IConfigurationRoot configurationRoot)
             {

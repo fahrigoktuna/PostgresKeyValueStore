@@ -26,16 +26,7 @@ namespace PostgresKeyValueStore.Library
                 {
                     options
                         .UseNpgsql(
-                                    storeOptions.ConnectionString,
-                                    sqlOptions =>
-                                    {
-                                        sqlOptions.MigrationsAssembly(
-                                            typeof(StoreDbContext).Assembly.GetName().Name)
-                                        .MigrationsHistoryTable(
-                                            "efcore_store_migration_history", StoreDbContext.DefaultSchema);
-
-                                        sqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
-                                    }
+                                    storeOptions.ConnectionString
                                 )
                                 .UseSnakeCaseNamingConvention();
 
