@@ -1,0 +1,320 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Dashboard</title>
+    <link href="/{uiaddress}/bootstrap.min.css" rel="stylesheet">
+    <script src="/{uiaddress}/jquery-3.6.4.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Configuration Dashboard</h1>
+        <div class="d-flex justify-content-between mb-3">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#configModal" onclick="openCreateModal()">Add New</button>
+            <input type="text" id="searchInput" class="form-control w-25" placeholder="Ara (Key veya Value)">
+        </div>
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Key</th>
+                    <th>Value</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="configurationTable">
+                
+            </tbody>
+        </table>
+        <div id="pagination" class="d-flex justify-content-center mt-3">
+           
+        </div>
+    </div>
+
+
+    <!-- Modal -->
+    <div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="configModalLabel">New Configuration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="configForm">
+                        <input type="hidden" id="configId">
+                        <div class="mb-3">
+                            <label for="configKey" class="form-label">Key</label>
+                            <input type="text" class="form-control" id="configKey" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="configValue" class="form-label">Value</label>
+                            <input type="text" class="form-control" id="configValue" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary" id="saveButton">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1056">
+
+    </div>
+
+   
+    <script src="/{uiaddress}/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let currentPage = 1;
+        const pageSize = 10;
+        let configurations = [];
+        const baseUrl = '/store-framework-configurations';
+        const authorizationKey = '{authorizationKey}';
+
+        let headers = new Headers();
+        headers.append('Authorization', 'Basic ' + authorizationKey);
+
+        async function loadConfigurations() {
+            const searchValue = $("#searchInput").val(); // Arama değerini al
+            const url = `${baseUrl}?page=${currentPage}&pageSize=${pageSize}&search=${encodeURIComponent(searchValue)}`;
+
+            try {
+                const response = await fetch(url, { headers: headers });
+                if (!response.ok) throw new Error("Veriler alınırken bir hata oluştu.");
+
+                const result = await response.json();
+
+                updateTable(result.data);
+                updatePagination(result.pagination);
+            } catch (error) {
+                showNotification(error.message, 'danger');
+
+            }
+        }
+
+        $("#saveButton").click(function () {
+            var key = $("#configKey").val();
+            var value = $("#configValue").val();
+
+            if (key.length < 1) {
+                showNotification('<b>Key</b> alanı zorunludur', 'danger')
+                $("#configKey").focus();
+                return false; // no submission
+            }
+            else if (value.length < 1) {
+                showNotification('<b>Value</b> alanı zorunludur', 'danger')
+                $("#configValue").focus();
+
+                return false; // no submission
+            }
+
+            saveConfig();
+
+            return true; // form submits
+        });
+        // Update Table
+        function updateTable(data) {
+            const tableBody = $("#configurationTable");
+            tableBody.empty();
+            if (data.length === 0) {
+                tableBody.append('<tr><td colspan="4" class="text-center">Hiçbir sonuç bulunamadı.</td></tr>');
+                return;
+            }
+            configurations = data;
+            data.forEach((config, index) => {
+                tableBody.append(`
+                                    <tr>
+                                        <td>${(currentPage - 1) * pageSize + index + 1}</td>
+                                        <td>${config.key}</td>
+                                        <td>${config.value}</td>
+                                        <td>
+                                            <button class="btn btn-warning btn-sm" onclick="openEditModal('${config.key}')">Düzenle</button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteConfig('${config.key}')">Sil</button>
+                                        </td>
+                                    </tr>
+                                `);
+            });
+        }
+
+        // Update Paging
+        function updatePagination(pagination) {
+            const paginationContainer = $("#pagination");
+            paginationContainer.empty();
+
+            const totalPages = pagination.totalPages;
+            if (totalPages <= 1) return;
+
+            for (let i = 1; i <= totalPages; i++) {
+                const activeClass = i === currentPage ? "active" : "";
+                paginationContainer.append(`
+                                    <button class="btn btn-outline-primary mx-1 ${activeClass}" onclick="goToPage(${i})">${i}</button>
+                                `);
+            }
+        }
+
+        // Changing page
+        function goToPage(page) {
+            if (page === currentPage) return;
+            currentPage = page;
+            loadConfigurations();
+        }
+
+        // Search
+        $("#searchInput").on("input", function () {
+            currentPage = 1;
+            loadConfigurations();
+        });
+
+       
+        $(document).ready(() => {
+            loadConfigurations();
+
+
+        });
+        $(function () {
+            $('form').each(function () {
+                $(this).find('input').keypress(function (e) {
+                    // Enter pressed?
+                    if (e.which == 10 || e.which == 13) {
+                        $("#saveButton").click();
+
+                    }
+                });
+            });
+        });
+        function openCreateModal() {
+            editMode = false;
+            $("#configModalLabel").text("Yeni Konfigürasyon");
+            $("#configForm")[0].reset();
+            $("#configId").val("");
+            $("#configModal").modal("show");
+        }
+
+        function openEditModal(key) {
+            editMode = true;
+            const config = configurations.find(c => c.key === key);
+            if (config) {
+                $("#configModalLabel").text("Konfigürasyonu Düzenle");
+                $("#configId").val(config.key);
+                $("#configKey").val(config.key);
+                $("#configValue").val(config.value);
+                $("#configModal").modal("show");
+            }
+        }
+        async function saveConfig() {
+            const id = $("#configId").val();
+            const key = $("#configKey").val();
+            const value = $("#configValue").val();
+
+
+
+            if (key.length < 1) {
+                return false; // no submission
+            }
+            else if (value.length < 1) {
+                return false; // no submission
+            }
+
+
+            const config = { key, value };
+
+            try {
+                const response = id
+                    ? await fetch(baseUrl, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json", "Authorization": 'Basic ' + authorizationKey },
+                        body: JSON.stringify(config),
+                    })
+                    : await fetch(baseUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": 'Basic ' + authorizationKey },
+                        body: JSON.stringify(config),
+
+                    });
+
+                if (!response.ok) throw new Error("Konfigürasyon kaydedilirken bir hata oluştu.");
+                showNotification(id ? "Konfigürasyon güncellendi." : "Yeni konfigürasyon eklendi.", 'primary');
+
+                $("#configModal").modal("hide");
+                loadConfigurations();
+            } catch (error) {
+                showNotification(error.message, 'danger');
+
+            }
+        }
+
+        // Delete Configuration
+        async function deleteConfig(id) {
+            if (confirm("Bu konfigürasyonu silmek istediğinize emin misiniz?")) {
+                try {
+                    const response = await fetch(`${baseUrl}/${id}`, { method: "DELETE", headers: headers });
+                    if (!response.ok) throw new Error("Konfigürasyon silinirken bir hata oluştu.");
+                    showNotification('Konfigürasyon silindi', 'warning');
+                    loadConfigurations();
+                } catch (error) {
+                    showNotification(error.message, 'danger');
+                }
+            }
+        }
+
+        function generateUUID() { // Public Domain/MIT
+            var d = new Date().getTime();//Timestamp
+            var d2 = ((typeof performance !== 'undefined') && performance.now && (performance.now() * 1000)) || 0;//Time in microseconds since page-load or 0 if unsupported
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = Math.random() * 16;//random number between 0 and 16
+                if (d > 0) {//Use timestamp until depleted
+                    r = (d + r) % 16 | 0;
+                    d = Math.floor(d / 16);
+                } else {//Use microseconds since page-load if supported
+                    r = (d2 + r) % 16 | 0;
+                    d2 = Math.floor(d2 / 16);
+                }
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+        }
+
+        function showNotification(message, type) {
+            const alertid = generateUUID();
+            const alertMessage = `<div id="${alertid}" style="margin-bottom:25px;margin-right:15px;" class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+              <div class="d-flex">
+                <div class="toast-body">
+                  ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+              </div>
+</div>`;
+
+
+            // Add Notification
+            $('#toastContainer').append(alertMessage);
+            $('#' + alertid).show();
+            setTimeout(() => {
+                $('#' + alertid).hide();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
